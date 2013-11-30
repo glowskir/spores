@@ -57,7 +57,7 @@ package object spores {
        (y: T) => { ... }
      }
    */
-  private def check(c: Context)(funTree: c.Tree): Unit = {
+  private def check(c: Context)(funTree: c.Tree): List[c.Type] = {
     import c.universe._
 
     // traverse body of `fun` and check that the free vars access only allowed things
@@ -162,6 +162,10 @@ package object spores {
       case _ =>
         c.error(funLiteral.pos, "Incorrect usage of `spore`: function literal expected")
     }
+
+    val tpes = validEnv.map(s => s.typeSignature)
+    debug("types of environment: " + tpes)
+    tpes
   }
 
 
@@ -171,9 +175,11 @@ package object spores {
     // check Spore constraints
     check(c)(fun.tree)
 
-    reify {
-      new SporeImpl(fun.splice)
-    }
+    val tree = q"""
+      new SporeImpl(${fun.tree})
+    """
+
+    c.Expr[Spore[T, R]](tree)
   }
 
   def spore2Impl[T1: c.WeakTypeTag, T2: c.WeakTypeTag, R: c.WeakTypeTag](c: Context)(fun: c.Expr[(T1, T2) => R]): c.Expr[Spore2[T1, T2, R]] = {
